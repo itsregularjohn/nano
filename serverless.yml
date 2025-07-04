@@ -1,0 +1,198 @@
+service: nano
+
+provider:
+  name: aws
+  runtime: nodejs20.x
+  region: us-east-1
+  stage: ${opt:stage, 'prod'}
+  timeout: 29
+  environment:
+    NODE_ENV: ${self:custom.nodeEnv.${self:provider.stage}}
+    OPENAI_API_KEY: ${env:OPENAI_API_KEY}
+    GOOGLE_CLIENT_ID: ${env:GOOGLE_CLIENT_ID}
+    GOOGLE_CLIENT_SECRET: ${env:GOOGLE_CLIENT_SECRET}
+    GOOGLE_REDIRECT_URI: https://${self:custom.domain.${self:provider.stage}}/oauth/google/callback
+    STRIPE_API_KEY: ${env:STRIPE_API_KEY}
+    STRIPE_PUBLISHABLE_KEY: ${env:STRIPE_PUBLISHABLE_KEY}
+    STRIPE_PRICE_ID: ${env:STRIPE_PRICE_ID}
+    DYNAMO_TABLE_NAME: ${self:custom.dynamoTableName}
+    SESSIONS_TABLE_NAME: ${self:custom.sessionsTableName}
+    APP_URL: https://${self:custom.domain.${self:provider.stage}}
+    S3_BUCKET_NAME: ${self:custom.s3BucketName}
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action:
+            - dynamodb:GetItem
+            - dynamodb:PutItem
+            - dynamodb:UpdateItem
+            - dynamodb:DeleteItem
+            - dynamodb:Query
+            - dynamodb:Scan
+          Resource:
+            - !GetAtt UsersTable.Arn
+            - !Sub "${UsersTable.Arn}/index/*"
+            - !GetAtt SessionsTable.Arn
+        - Effect: Allow
+          Action:
+            - s3:PutObject
+            - s3:GetObject
+            - s3:DeleteObject
+            - s3:ListBucket
+          Resource:
+            - !Sub "${ResumeBucket.Arn}/*"
+            - !GetAtt ResumeBucket.Arn
+
+functions:
+  app:
+    handler: src/index.handler
+    timeout: 29
+    events:
+      - httpApi:
+          path: /
+          method: ANY
+      - httpApi:
+          path: /{proxy+}
+          method: ANY
+
+custom:
+  dotenv:
+    path: .env.${self:provider.stage}
+    basePath: ./
+    logging: false
+    include:
+      - OPENAI_API_KEY
+      - GOOGLE_CLIENT_ID
+      - GOOGLE_CLIENT_SECRET
+      - STRIPE_API_KEY
+      - STRIPE_PUBLISHABLE_KEY
+      - STRIPE_PRICE_ID
+  domain:
+    dev: your-app.dev.yourdomain.com
+    prod: your-app.yourdomain.com
+  hostedZone:
+    dev: YOUR_DEV_HOSTED_ZONE_ID
+    prod: YOUR_PROD_HOSTED_ZONE_ID
+  nodeEnv:
+    dev: development
+    prod: production
+  dynamoTableName: nano-users-${self:provider.stage}
+  sessionsTableName: nano-sessions-${self:provider.stage}
+  s3BucketName: nano-files-${self:provider.stage}
+  serverless-offline:
+    noPrependStageInUrl: true
+
+package:
+  patterns:
+    - "src/static/**"
+    - "assets/**"
+
+resources:
+  Resources:
+    UsersTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:custom.dynamoTableName}
+        BillingMode: PAY_PER_REQUEST
+        AttributeDefinitions:
+          - AttributeName: pk
+            AttributeType: S
+          - AttributeName: sk
+            AttributeType: S
+          - AttributeName: gsi1pk
+            AttributeType: S
+          - AttributeName: gsi1sk
+            AttributeType: S
+        KeySchema:
+          - AttributeName: pk
+            KeyType: HASH
+          - AttributeName: sk
+            KeyType: RANGE
+        GlobalSecondaryIndexes:
+          - IndexName: gsi1
+            KeySchema:
+              - AttributeName: gsi1pk
+                KeyType: HASH
+              - AttributeName: gsi1sk
+                KeyType: RANGE
+            Projection:
+              ProjectionType: ALL
+
+    SessionsTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:custom.sessionsTableName}
+        BillingMode: PAY_PER_REQUEST
+        AttributeDefinitions:
+          - AttributeName: sessionId
+            AttributeType: S
+        KeySchema:
+          - AttributeName: sessionId
+            KeyType: HASH
+        TimeToLiveSpecification:
+          AttributeName: ttl
+          Enabled: true
+
+    ResumeBucket:
+      Type: AWS::S3::Bucket
+      Properties:
+        BucketName: ${self:custom.s3BucketName}
+        CorsConfiguration:
+          CorsRules:
+            - AllowedHeaders:
+                - "*"
+              AllowedMethods:
+                - GET
+                - PUT
+                - POST
+              AllowedOrigins:
+                - "*"
+              MaxAge: 3000
+
+    HttpApiDomainName:
+      Type: AWS::ApiGatewayV2::DomainName
+      Properties:
+        DomainName: ${self:custom.domain.${self:provider.stage}}
+        DomainNameConfigurations:
+          - CertificateArn: !Ref Certificate
+            EndpointType: REGIONAL
+
+    Certificate:
+      Type: AWS::CertificateManager::Certificate
+      Properties:
+        DomainName: ${self:custom.domain.${self:provider.stage}}
+        ValidationMethod: DNS
+        DomainValidationOptions:
+          - DomainName: ${self:custom.domain.${self:provider.stage}}
+            HostedZoneId: ${self:custom.hostedZone.${self:provider.stage}}
+
+    HttpApiMapping:
+      Type: AWS::ApiGatewayV2::ApiMapping
+      Properties:
+        ApiId: !Ref HttpApi
+        DomainName: !Ref HttpApiDomainName
+        Stage: $default
+
+    Route53RecordSet:
+      Type: AWS::Route53::RecordSet
+      Properties:
+        HostedZoneId: ${self:custom.hostedZone.${self:provider.stage}}
+        Name: ${self:custom.domain.${self:provider.stage}}
+        Type: A
+        AliasTarget:
+          DNSName: !GetAtt HttpApiDomainName.RegionalDomainName
+          HostedZoneId: !GetAtt HttpApiDomainName.RegionalHostedZoneId
+          EvaluateTargetHealth: false
+
+  Outputs:
+    UserTableName:
+      Value: !Ref UsersTable
+    SessionsTableName:
+      Value: !Ref SessionsTable
+    ResumeBucketName:
+      Value: !Ref ResumeBucket
+
+plugins:
+  - serverless-dotenv-plugin
+  - serverless-offline

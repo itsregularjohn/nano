@@ -1,0 +1,41 @@
+{
+  "name": "nano",
+  "version": "1.0.0",
+  "description": "Lightweight foundation for profitable micro-SaaS products. Ship fast, not complex.",
+  "license": "MIT",
+  "scripts": {
+    "dev": "sls offline --reloadHandler --stage dev",
+    "dev:node": "tsx watch -r dotenv/config src/server.ts",
+    "test": "jest",
+    "deploy": "sls deploy",
+    "deploy:dev": "sls deploy --stage dev",
+    "destroy": "sls remove",
+    "destroy:dev": "sls remove --stage dev",
+    "build": "tsc"
+  },
+  "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.839.0",
+    "@aws-sdk/client-s3": "^3.839.0",
+    "@aws-sdk/lib-dynamodb": "^3.839.0",
+    "@aws-sdk/s3-request-presigner": "^3.839.0",
+    "@hono/node-server": "^1.12.2",
+    "@hono/zod-validator": "^0.7.0",
+    "date-fns": "^4.1.0",
+    "hono": "^4.7.11",
+    "marked": "^16.0.0",
+    "openai": "^5.3.0",
+    "stripe": "^18.2.1",
+    "ulid": "^3.0.1",
+    "zod": "^3.25.56"
+  },
+  "devDependencies": {
+    "@aws-sdk/credential-providers": "^3.828.0",
+    "dotenv": "^16.4.5",
+    "serverless": "^4.4.5",
+    "serverless-dotenv-plugin": "^6.0.0",
+    "serverless-offline": "^14.0.0",
+    "tsx": "^4.19.1",
+    "typescript": "^5.6.3"
+  },
+  "packageManager": "pnpm@10.10.0+sha512.d615db246fe70f25dcfea6d8d73dee782ce23e2245e3c4f6f888249fb568149318637dca73c2c5c8ef2a4ca0d5657fb9567188bfab47f566d1ee6ce987815c39"
+}
