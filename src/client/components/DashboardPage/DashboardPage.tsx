@@ -1,11 +1,10 @@
-import { loadAssets } from "../../core/asset-loader"
+import { styles } from "./styles";
+import { script } from "./script";
 
-export const DashboardPage = async ({ user }: { user: any }) => {
-  const [dashboardScript, dashboardStyles] = await loadAssets(["dashboard.js", "dashboard.css"])
-
+export const DashboardPage = ({ user }: { user: any }) => {
   return (
     <>
-      <style dangerouslySetInnerHTML={{__html: dashboardStyles}} />
+      {styles}
       
       <div class="dashboard-container">
         <div class="dashboard-header">
@@ -36,7 +35,7 @@ export const DashboardPage = async ({ user }: { user: any }) => {
         </div>
       </div>
 
-      <script dangerouslySetInnerHTML={{__html: dashboardScript}} />
+      {script}
     </>
   )
 }

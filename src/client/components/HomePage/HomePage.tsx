@@ -1,8 +1,7 @@
-import { loadAssets } from "../../core/asset-loader"
+import { styles } from "./styles";
+import { script } from "./script";
 
-export const HomePage = async () => {
-  const [homepageScript, homepageStyles] = await loadAssets(["homepage.js", "homepage.css"])
-
+export const HomePage = () => {
   return (
     <html>
       <head>
@@ -39,7 +38,7 @@ export const HomePage = async () => {
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
         
-        <style dangerouslySetInnerHTML={{__html: homepageStyles}} />
+        {styles}
       </head>
       <body>
         <div class="container">
@@ -100,7 +99,7 @@ export const HomePage = async () => {
             <a href="/privacy">Privacy Policy</a> • <a href="/terms">Terms of Service</a>
           </div>
         </div>
-        <script dangerouslySetInnerHTML={{__html: homepageScript}} />
+        {script}
       </body>
     </html>
   )
